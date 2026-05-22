@@ -1883,19 +1883,11 @@
     // ===================== 各平台搜索 =====================
 
     // 咪咕官方接口：搜索 + 加密响应处理
-    const MIGU_API_HEADERS = {
-      "Accept": "application/json, text/plain, */*",
-      "ua": "Android_migu",
-      "version": "6.8.8",
-      "channel": "014021I",
-      "subchannel": "014021I"
-    };
-    const MIGU_LISTEN_HEADERS = {
-      ...MIGU_API_HEADERS,
-      "Content-Type": "application/json;charset=UTF-8",
-      "birth": "h5page",
-      "signature": "1"
-    };
+    // 浏览器直连官方接口时不能带 ua/version/channel/signature 等自定义请求头，
+    // 否则会触发 CORS 预检并导致 Network 里 0 B transferred / Provisional headers。
+    // 这里保留变量名，尽量少改下面的调用。
+    const MIGU_API_HEADERS = {};
+    const MIGU_LISTEN_HEADERS = {};
     const MIGU_MAGIC = [0xab, 0xcd, 0x01];
     const MIGU_KEY_BYTES = new TextEncoder().encode("Jk8qzuePiJ1qE3mDYhLQ3T73DtDoAhLP");
 
