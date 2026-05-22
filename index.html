@@ -1882,30 +1882,151 @@
 
     // ===================== 各平台搜索 =====================
 
+    // 咪咕官方接口：搜索 + 加密响应处理
+    const MIGU_API_HEADERS = {
+      "Accept": "application/json, text/plain, */*",
+      "ua": "Android_migu",
+      "version": "6.8.8",
+      "channel": "014021I",
+      "subchannel": "014021I"
+    };
+    const MIGU_LISTEN_HEADERS = {
+      ...MIGU_API_HEADERS,
+      "Content-Type": "application/json;charset=UTF-8",
+      "birth": "h5page",
+      "signature": "1"
+    };
+    const MIGU_MAGIC = [0xab, 0xcd, 0x01];
+    const MIGU_KEY_BYTES = new TextEncoder().encode("Jk8qzuePiJ1qE3mDYhLQ3T73DtDoAhLP");
+
+    function buildMiguSearchUrl(keyword, pageNo, pageSize){
+      const params = new URLSearchParams();
+      params.set("text", keyword);
+      params.set("pageNo", String(pageNo || 1));
+      params.set("pageSize", String(pageSize || 20));
+      params.set("isCopyright", "1");
+      params.set("sort", "1");
+      params.set("searchSwitch", JSON.stringify({
+        song: 1, album: 0, singer: 0, tagSong: 1, mvSong: 0, bestShow: 1
+      }));
+      return "https://c.musicapp.migu.cn/v1.0/content/search_all.do?" + params.toString();
+    }
+
+    async function fetchMiguJson(url, options){
+      const res = await fetch(url, options || {});
+      const raw = new Uint8Array(await res.arrayBuffer());
+      const encrypted = res.headers.get("signature") === "1" ||
+        (raw.length > 4 && raw[0] === MIGU_MAGIC[0] && raw[1] === MIGU_MAGIC[1] && raw[2] === MIGU_MAGIC[2]);
+
+      let text;
+      if(encrypted){
+        const seed = raw[3];
+        const plain = new Uint8Array(raw.length - 4);
+        for(let i = 0; i < plain.length; i++){
+          plain[i] = (raw[i + 4] + seed - MIGU_KEY_BYTES[i % MIGU_KEY_BYTES.length]) & 0xff;
+        }
+        text = new TextDecoder("utf-8").decode(plain);
+      }else{
+        text = new TextDecoder("utf-8").decode(raw);
+      }
+      return JSON.parse(text);
+    }
+
+    function getMiguSongResults(json){
+      return (json && json.songResultData && Array.isArray(json.songResultData.result))
+        ? json.songResultData.result
+        : [];
+    }
+
+    function getMiguSingerText(it){
+      const list = it.singers || it.singerList || [];
+      if(Array.isArray(list) && list.length){
+        return list.map(s => s && (s.name || s.singerName)).filter(Boolean).join(", ");
+      }
+      return it.singer || it.singerName || "";
+    }
+
+    function getMiguAlbumText(it){
+      const list = it.albums || [];
+      if(it.album) return it.album;
+      if(Array.isArray(list) && list.length){
+        return list.map(a => a && (a.name || a.albumName)).filter(Boolean).join(", ");
+      }
+      return "";
+    }
+
+    function normalizeMiguCover(url){
+      if(!url) return null;
+      if(/^https?:\/\//i.test(url)) return url;
+      if(url.startsWith("//")) return location.protocol + url;
+      try{return new URL(url, "https://d.musicapp.migu.cn").href;}catch(e){return url;}
+    }
+
+    function getMiguCover(it){
+      const imgItems = Array.isArray(it.imgItems) ? it.imgItems : [];
+      const fromItems = imgItems.length ? imgItems[imgItems.length - 1].img : null;
+      return normalizeMiguCover(fromItems || it.img3 || it.img2 || it.img1 || it.cover || null);
+    }
+
+    function getMiguFormats(it){
+      return []
+        .concat(Array.isArray(it.rateFormats) ? it.rateFormats : [])
+        .concat(Array.isArray(it.newRateFormats) ? it.newRateFormats : [])
+        .concat(Array.isArray(it.audioFormats) ? it.audioFormats : [])
+        .filter(f => f && f.formatType && f.resourceType && f.formatType !== "Z3D");
+    }
+
+    function getMiguFormatSize(meta){
+      const raw = String(
+        (meta && (meta.size || meta.iosSize || meta.androidSize || meta.isize || meta.asize)) || "0"
+      ).replace(/MB$/i, "").trim();
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : 0;
+    }
+
     async function searchMigu(kw,limit){
-      const url=`https://api.xcvts.cn/api/music/migu?gm=${encodeURIComponent(kw)}&n=&num=${encodeURIComponent(limit)}&type=json`;
+      const url = buildMiguSearchUrl(kw, 1, limit);
       let added=0;
       try{
-        const res=await fetch(url);
-        const json=await res.json();
-        if(json.code!==200||!Array.isArray(json.data))return 0;
-        for(const it of json.data){
-          const n=it.n;
-          const uid=`migu-${kw}-${n}-${it.title}-${it.singer}`;
-          if(state.trackMap.has(uid))continue;
+        const json = await fetchMiguJson(url, {headers: MIGU_API_HEADERS});
+        const list = getMiguSongResults(json);
+        list.slice(0, limit || list.length).forEach((it, idx)=>{
+          const contentId = it.contentId || it.songId || "";
+          const copyrightId = it.copyrightId || "";
+          if(!contentId || !copyrightId) return;
+
+          const uid=`migu-${contentId}-${copyrightId}`;
+          if(state.trackMap.has(uid))return;
+
           const track={
-            uid,source:'migu',displayIndex:n||0,keyword:kw,
+            uid,
+            source:'migu',
+            displayIndex:idx+1,
+            keyword:kw,
             requestNum: limit,
-            title:it.title||'',artist:it.singer||'',album:'',
-            cover:null,audioUrl:null,lrc:null,lrcUrl:null,
+
+            songid:contentId,
+            contentId,
+            copyrightId,
+            miguRaw:it,
+
+            title:it.name||it.songName||'',
+            artist:getMiguSingerText(it),
+            album:getMiguAlbumText(it),
+            cover:getMiguCover(it),
+
+            audioUrl:null,
+            lrc:null,
+            lrcUrl:it.lyricUrl||null,
             detailsLoaded:false,
             quality:null,
             qualityLabel:null
           };
           state.trackMap.set(uid,track);
-          state.searchResults.push(track); added++;
-        }
-      }catch(e){console.error('migu',e);}
+          state.searchResults.push(track);
+          added++;
+        });
+      }catch(e){console.error('migu official search',e);}
       return added;
     }
 
@@ -2182,27 +2303,93 @@
     // ===================== 各平台详情 =====================
 
     async function fetchMiguDetails(track){
+      let searchResult = track.miguRaw || null;
       const num = track.requestNum || state.perSourceCurrentLimit.migu || state.perSourceLimit || 20;
-      const url=`https://api.xcvts.cn/api/music/migu?gm=${encodeURIComponent(track.keyword)}&n=${encodeURIComponent(track.displayIndex||1)}&num=${encodeURIComponent(num)}&type=json`;
-      const res=await fetch(url);
-      const j=await res.json();
-      if(j.code!==200) throw new Error('migu detail');
+
+      if(!searchResult || !searchResult.contentId || !searchResult.copyrightId){
+        const keyword = (track.keyword || `${track.title || ''} ${track.artist || ''}`).trim();
+        if(keyword){
+          const searchUrl = buildMiguSearchUrl(keyword, 1, num);
+          const searchJson = await fetchMiguJson(searchUrl, {headers: MIGU_API_HEADERS});
+          const list = getMiguSongResults(searchJson);
+          searchResult =
+            list.find(it => (it.contentId || it.songId || '') === (track.contentId || track.songid || '')) ||
+            list[(track.displayIndex || 1) - 1] ||
+            list[0] ||
+            null;
+          if(searchResult) track.miguRaw = searchResult;
+        }
+      }
+
+      if(!searchResult) throw new Error('migu official detail missing search result');
+
+      const contentId = searchResult.contentId || searchResult.songId || track.contentId || track.songid || '';
+      const copyrightId = searchResult.copyrightId || track.copyrightId || '';
+      if(!contentId || !copyrightId) throw new Error('migu official detail missing ids');
 
       Object.assign(track,{
-        title:j.title||track.title,
-        artist:j.singer||track.artist,
-        cover:j.cover||track.cover,
-        audioUrl:j.music_url||track.audioUrl,
-        lrcUrl:j.lrc_url||track.lrcUrl,
-        pageUrl:j.link||track.pageUrl,
-        detailsLoaded:true
+        title:searchResult.name||searchResult.songName||track.title,
+        artist:getMiguSingerText(searchResult)||track.artist,
+        album:getMiguAlbumText(searchResult)||track.album,
+        cover:getMiguCover(searchResult)||track.cover,
+        songid:contentId,
+        contentId,
+        copyrightId,
+        lrcUrl:searchResult.lyricUrl||track.lrcUrl||null
       });
 
-      // 根据音频链接后缀判断音质
-      if (track.audioUrl) {
-        const q = inferQualityFromUrl(track.audioUrl);
-        track.quality = q.tag;
-        track.qualityLabel = q.label;
+      const formats = getMiguFormats(searchResult)
+        .sort((a,b)=>getMiguFormatSize(b)-getMiguFormatSize(a));
+
+      for(const fmt of formats){
+        const params = new URLSearchParams();
+        params.set("contentId", contentId);
+        params.set("copyrightId", copyrightId);
+        params.set("resourceType", fmt.resourceType);
+        params.set("netType", "01");
+        params.set("toneFlag", fmt.formatType);
+        params.set("scene", "");
+        params.set("lowerQualityContentId", contentId);
+
+        try{
+          const listenUrl = "https://c.musicapp.migu.cn/strategy/listen-url/h5/v2.4?" + params.toString();
+          const result = await fetchMiguJson(listenUrl, {headers: MIGU_LISTEN_HEADERS});
+          let playUrl = result && result.data && result.data.url;
+          if(!playUrl){
+            playUrl =
+              `https://app.pd.nf.migu.cn/MIGUM3.0/v1.0/content/sub/listenSong.do` +
+              `?channel=mx&copyrightId=${encodeURIComponent(copyrightId)}` +
+              `&contentId=${encodeURIComponent(contentId)}` +
+              `&toneFlag=${encodeURIComponent(fmt.formatType)}` +
+              `&resourceType=${encodeURIComponent(fmt.resourceType)}` +
+              `&userId=15548614588710179085069&netType=00`;
+          }
+          playUrl = String(playUrl || '').replace(/(?<=\/)MP3_128_16_Stero(?=\/)/, 'MP3_320_16_Stero');
+          if(playUrl && /^https?:\/\//i.test(playUrl)){
+            track.audioUrl = playUrl;
+            const q = inferQualityFromUrl(track.audioUrl);
+            track.quality = q.tag;
+            track.qualityLabel = q.label;
+            break;
+          }
+        }catch(e){
+          console.warn('migu official listen url failed', e);
+        }
+      }
+
+      if(!track.lrcUrl){
+        try{
+          const lyricApi =
+            `https://app.c.nf.migu.cn/MIGUM3.0/strategy/pc/listen/v1.0` +
+            `?scene=&netType=01&resourceType=2` +
+            `&copyrightId=${encodeURIComponent(copyrightId)}` +
+            `&contentId=${encodeURIComponent(contentId)}` +
+            `&toneFlag=PQ`;
+          const lyricJson = await fetchMiguJson(lyricApi, {headers: MIGU_API_HEADERS});
+          track.lrcUrl = lyricJson && lyricJson.data && lyricJson.data.lrcUrl || track.lrcUrl;
+        }catch(e){
+          console.warn('migu official lyric url failed', e);
+        }
       }
 
       if(track.lrcUrl && !track.lrc){
@@ -2211,6 +2398,8 @@
           track.lrc=await r.text();
         }catch(e){}
       }
+
+      track.detailsLoaded=true;
     }
 
     // 网易云详情：meting 拿音源 + vkeys 拿歌词
