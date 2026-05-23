@@ -1395,7 +1395,9 @@
                 <select id="playlist-select"></select>
                 <button id="add-current-btn" class="btn btn-secondary btn-icon ripple-target" title="把当前歌曲加入歌单">＋</button>
                 <button id="new-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="newPlaylist">新建歌单</button>
+                <button id="import-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="importPlaylist">导入歌单</button>
                 <button id="export-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="exportPlaylist">导出歌单</button>
+                <input id="import-playlist-input" type="file" accept="application/json,.json" style="display:none;" />
               </div>
               <div class="playmode-row">
                 <button class="playmode-btn active ripple-target" data-mode="list" title="列表循环">🔁</button>
@@ -1532,6 +1534,7 @@
         playlistInfoFavorites:"收藏列表",
         playlistInfoPlaylist:"歌单",
         newPlaylist:"新建歌单",
+        importPlaylist:"导入歌单",
         exportPlaylist:"导出歌单",
         footerText:"本站仅作为学习演示，音乐版权归各平台与原作者所有。",
         toastAddedFavorite:"已添加到收藏",
@@ -1545,6 +1548,9 @@
         toastLyricStyleSwitched:"已切换歌词炫酷效果。",
         toastDownloadNotReady:"当前歌曲还未加载完成，稍后再试。",
         toastPlaylistCreated:"歌单创建成功。",
+        toastPlaylistImported:"导入完成",
+        toastPlaylistImportEmpty:"导入文件里没有可用歌单或收藏。",
+        toastPlaylistImportError:"导入失败，请确认文件是本站导出的 JSON。",
         toastPlaylistExported:"已导出歌单文件。",
         toastPlaylistExportEmpty:"暂无可导出的歌单。",
         toastPlaylistEmpty:"当前歌单为空，先添加几首歌吧~",
@@ -1603,6 +1609,7 @@
         playlistInfoFavorites:"Favorites List",
         playlistInfoPlaylist:"Playlist",
         newPlaylist:"Create",
+        importPlaylist:"Import",
         exportPlaylist:"Export",
         footerText:"For demo only. All music copyrights belong to original owners.",
         toastAddedFavorite:"Added to favorites",
@@ -1616,6 +1623,9 @@
         toastLyricStyleSwitched:"Lyrics FX toggled.",
         toastDownloadNotReady:"Song not fully loaded yet. Try again later.",
         toastPlaylistCreated:"Playlist created.",
+        toastPlaylistImported:"Import completed",
+        toastPlaylistImportEmpty:"No usable playlists or favorites found in this file.",
+        toastPlaylistImportError:"Import failed. Please choose a JSON file exported by this site.",
         toastPlaylistExported:"Playlist file exported.",
         toastPlaylistExportEmpty:"No playlist to export.",
         toastPlaylistEmpty:"Playlist is empty. Add some songs first.",
@@ -1844,6 +1854,104 @@
       a.remove();
       URL.revokeObjectURL(url);
       showToast(t('toastPlaylistExported'));
+    }
+
+    function mergeImportedTracks(targetList, rawTracks){
+      let added=0;
+      if(!Array.isArray(rawTracks)) return added;
+
+      rawTracks.forEach(raw=>{
+        const imported=deserializeTrack(raw);
+        if(!imported || !imported.uid) return;
+
+        const track=state.trackMap.get(imported.uid) || imported;
+        if(!state.trackMap.has(track.uid)) state.trackMap.set(track.uid, track);
+
+        if(!targetList.some(item=>item.uid===track.uid)){
+          targetList.push(track);
+          added++;
+        }
+      });
+
+      return added;
+    }
+
+    function importPlaylistData(data){
+      if(!data || typeof data!=='object') throw new Error('invalid import data');
+
+      let addedFavorites=0;
+      let addedPlaylists=0;
+      let addedPlaylistTracks=0;
+
+      addedFavorites=mergeImportedTracks(state.favorites, data.favorites);
+
+      const importedPlaylists=Array.isArray(data.playlists) ? data.playlists : [];
+      importedPlaylists.forEach((pl,idx)=>{
+        if(!pl || typeof pl!=='object') return;
+
+        const fallbackName=state.language==='zh' ? '导入歌单' : 'Imported Playlist';
+        const name=(pl.name || fallbackName).toString().trim() || fallbackName;
+        const rawId=(pl.id || '').toString().trim();
+
+        let target=rawId ? state.playlists.find(item=>item.id===rawId) : null;
+        if(!target) target=state.playlists.find(item=>item.name===name);
+
+        if(!target){
+          let id=rawId || ('pl-import-'+Date.now()+'-'+idx+'-'+Math.random().toString(16).slice(2));
+          if(state.playlists.some(item=>item.id===id)){
+            id='pl-import-'+Date.now()+'-'+idx+'-'+Math.random().toString(16).slice(2);
+          }
+          target={id,name,tracks:[]};
+          state.playlists.push(target);
+          addedPlaylists++;
+        }
+
+        addedPlaylistTracks += mergeImportedTracks(target.tracks, pl.tracks);
+      });
+
+      const totalAdded=addedFavorites + addedPlaylists + addedPlaylistTracks;
+      const hasUsableData=(Array.isArray(data.favorites) && data.favorites.length) || importedPlaylists.length;
+      if(!hasUsableData) return {empty:true, addedFavorites, addedPlaylists, addedPlaylistTracks, totalAdded};
+
+      rebuildLibraryTrackMap();
+      renderPlaylistOptions();
+      saveLibraryToStorage();
+      renderPlaylistList();
+      updateMainFavButton();
+
+      return {empty:false, addedFavorites, addedPlaylists, addedPlaylistTracks, totalAdded};
+    }
+
+    function handleImportPlaylistFile(e){
+      const input=e.target;
+      const file=input.files && input.files[0];
+      if(!file) return;
+
+      const reader=new FileReader();
+      reader.onload=()=>{
+        try{
+          const data=JSON.parse(reader.result);
+          const stat=importPlaylistData(data);
+          if(stat.empty){
+            showToast(t('toastPlaylistImportEmpty'));
+          }else{
+            const msg=state.language==='zh'
+              ? `${t('toastPlaylistImported')}：新增 ${stat.addedPlaylists} 个歌单，${stat.addedFavorites} 首收藏，${stat.addedPlaylistTracks} 首歌单歌曲。`
+              : `${t('toastPlaylistImported')}: ${stat.addedPlaylists} playlists, ${stat.addedFavorites} favorites, ${stat.addedPlaylistTracks} playlist tracks added.`;
+            showToast(msg);
+          }
+        }catch(err){
+          console.error('import playlist failed', err);
+          showToast(t('toastPlaylistImportError'));
+        }finally{
+          input.value='';
+        }
+      };
+      reader.onerror=()=>{
+        showToast(t('toastPlaylistImportError'));
+        input.value='';
+      };
+      reader.readAsText(file, 'utf-8');
     }
 
     function renderPlaylistOptions(){
@@ -2947,6 +3055,8 @@
       dom.playlistSelectRow=$('playlist-select-row');
       dom.playlistSelect=$('playlist-select');
       dom.newPlaylistBtn=$('new-playlist-btn');
+      dom.importPlaylistBtn=$('import-playlist-btn');
+      dom.importPlaylistInput=$('import-playlist-input');
       dom.exportPlaylistBtn=$('export-playlist-btn');
       dom.addCurrentBtn=$('add-current-btn');
 
@@ -3090,6 +3200,8 @@
       });
 
       dom.newPlaylistBtn.addEventListener('click',openPlaylistModal);
+      dom.importPlaylistBtn.addEventListener('click',()=>dom.importPlaylistInput.click());
+      dom.importPlaylistInput.addEventListener('change',handleImportPlaylistFile);
       dom.exportPlaylistBtn.addEventListener('click',exportPlaylistData);
       dom.playlistConfirmBtn.addEventListener('click',createPlaylist);
       dom.playlistCancelBtn.addEventListener('click',closePlaylistModal);
