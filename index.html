@@ -2431,11 +2431,44 @@
       const d=j.data;
       const playLinks=d['播放链接']||{};
 
-      function pickJooxPlayUrl(links){
+      async function probeJooxAudioUrl(u){
+        if(!u) return false;
+
+        async function request(method, extraOptions){
+          const controller=new AbortController();
+          const timer=setTimeout(()=>controller.abort(),3000);
+          try{
+            const res=await fetch(u,Object.assign({
+              method,
+              cache:'no-store',
+              redirect:'follow',
+              signal:controller.signal
+            },extraOptions||{}));
+            return res && (res.ok || res.status===206 || (res.status>=200 && res.status<400));
+          }finally{
+            clearTimeout(timer);
+          }
+        }
+
+        try{
+          if(await request('HEAD')) return true;
+        }catch(e){
+          // Some music CDN links do not allow HEAD. Try a tiny ranged GET below.
+        }
+
+        try{
+          return await request('GET',{headers:{Range:'bytes=0-0'}});
+        }catch(e){
+          return false;
+        }
+      }
+
+      async function pickJooxPlayUrl(links){
         const order=['Atmos全景声','无损FLAC','Hi-Res无损','母带无损','OGG 320','MP3 320','AAC 192','OGG 192','MP3 128','AAC 96','AAC 48'];
         for(const name of order){
           const u=links[name];
           if(!u)continue;
+          if(!(await probeJooxAudioUrl(u)))continue;
           if(/母带|无损|flac|hi-res|atmos/i.test(name) || /\.flac(?:\?|$)/i.test(u)){
             return {url:u, tag:'lossless', label:'LOSSLESS', text:name};
           }
@@ -2446,7 +2479,7 @@
         return {url:null, tag:null, label:null, text:null};
       }
 
-      const best=pickJooxPlayUrl(playLinks);
+      const best=await pickJooxPlayUrl(playLinks);
       Object.assign(track,{
         title:d['歌曲名称']||track.title,
         artist:d['歌手']||track.artist,
