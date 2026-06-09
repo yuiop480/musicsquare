@@ -847,13 +847,13 @@
 
     .playlist-bar {
       display:flex;
-      justify-content:space-between;
-      align-items:center;
+      flex-direction:column;
+      align-items:stretch;
       font-size:11px;
       color:var(--text-sub);
-      gap:6px;
+      gap:5px;
       flex-shrink:0;
-      padding-bottom:4px;
+      padding-bottom:5px;
       margin-bottom:4px;
       position:sticky;
       top:0;
@@ -862,6 +862,12 @@
         linear-gradient(180deg, rgba(7,10,30,0.98), rgba(7,10,30,0.85));
       border-bottom:1px solid rgba(255,255,255,0.08);
     }
+    .playlist-top-row {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:6px;
+    }
     .playlist-info {
       flex:1;
       min-width:0;
@@ -869,17 +875,22 @@
       overflow:hidden;
       text-overflow:ellipsis;
     }
-    .playlist-right-controls {
-      display:flex;
-      align-items:center;
-      gap:6px;
-    }
     .playlist-select-row {
       display:flex;
+      flex-direction:column;
+      align-items:stretch;
+      gap:5px;
+    }
+    .playlist-select-tools,
+    .playlist-file-actions {
+      display:flex;
       align-items:center;
       gap:6px;
+      flex-wrap:wrap;
     }
-    .playlist-select-row select {
+    .playlist-select-tools select {
+      flex:1;
+      min-width:0;
       background:rgba(5,7,24,0.8);
       border-radius:999px;
       border:1px solid rgba(255,255,255,0.2);
@@ -888,11 +899,16 @@
       font-size:11px;
       outline:none;
     }
+    .playlist-file-actions .btn {
+      padding:4px 10px;
+      font-size:11px;
+    }
 
     .playmode-row {
       display:flex;
       align-items:center;
       gap:4px;
+      flex-shrink:0;
     }
     .playmode-btn {
       border:none;
@@ -1389,20 +1405,25 @@
 
         <div class="playlist-main">
           <div class="playlist-bar">
-            <span id="playlist-info" class="playlist-info"></span>
-            <div class="playlist-right-controls">
-              <div id="playlist-select-row" class="playlist-select-row" style="display:none;">
-                <select id="playlist-select"></select>
-                <button id="add-current-btn" class="btn btn-secondary btn-icon ripple-target" title="把当前歌曲加入歌单">＋</button>
-                <button id="new-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="newPlaylist">新建歌单</button>
-                <button id="import-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="importPlaylist">导入歌单</button>
-                <button id="export-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="exportPlaylist">导出歌单</button>
-                <input id="import-playlist-input" type="file" accept="application/json,.json" style="display:none;" />
-              </div>
+            <div class="playlist-top-row">
+              <span id="playlist-info" class="playlist-info"></span>
               <div class="playmode-row">
                 <button class="playmode-btn active ripple-target" data-mode="list" title="列表循环">🔁</button>
                 <button class="playmode-btn ripple-target" data-mode="single" title="单曲循环">🔂</button>
                 <button class="playmode-btn ripple-target" data-mode="shuffle" title="随机播放">🔀</button>
+              </div>
+            </div>
+            <div id="playlist-select-row" class="playlist-select-row" style="display:none;">
+              <div class="playlist-select-tools">
+                <select id="playlist-select"></select>
+                <button id="add-current-btn" class="btn btn-secondary btn-icon ripple-target" title="把当前歌曲加入歌单">＋</button>
+                <button id="delete-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="deletePlaylist">删除歌单</button>
+              </div>
+              <div class="playlist-file-actions">
+                <button id="new-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="newPlaylist">新建歌单</button>
+                <button id="import-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="importPlaylist">导入歌单</button>
+                <button id="export-playlist-btn" class="btn btn-ghost ripple-target" data-i18n="exportPlaylist">导出歌单</button>
+                <input id="import-playlist-input" type="file" accept="application/json,.json" style="display:none;" />
               </div>
             </div>
           </div>
@@ -1536,6 +1557,8 @@
         newPlaylist:"新建歌单",
         importPlaylist:"导入歌单",
         exportPlaylist:"导出歌单",
+        deletePlaylist:"删除歌单",
+        removeFromPlaylist:"从歌单移除",
         footerText:"本站仅作为学习演示，音乐版权归各平台与原作者所有。",
         toastAddedFavorite:"已添加到收藏",
         toastRemovedFavorite:"已从收藏移除",
@@ -1548,6 +1571,10 @@
         toastLyricStyleSwitched:"已切换歌词炫酷效果。",
         toastDownloadNotReady:"当前歌曲还未加载完成，稍后再试。",
         toastPlaylistCreated:"歌单创建成功。",
+        toastPlaylistDeleted:"歌单已删除。",
+        toastTrackRemovedFromPlaylist:"已从歌单移除。",
+        confirmDeletePlaylist:"确定要删除这个歌单吗？",
+        confirmRemoveTrack:"确定要从歌单中移除这首歌吗？",
         toastPlaylistImported:"导入完成",
         toastPlaylistImportEmpty:"导入文件里没有可用歌单或收藏。",
         toastPlaylistImportError:"导入失败，请确认文件是本站导出的 JSON。",
@@ -1611,6 +1638,8 @@
         newPlaylist:"Create",
         importPlaylist:"Import",
         exportPlaylist:"Export",
+        deletePlaylist:"Delete",
+        removeFromPlaylist:"Remove from playlist",
         footerText:"For demo only. All music copyrights belong to original owners.",
         toastAddedFavorite:"Added to favorites",
         toastRemovedFavorite:"Removed from favorites",
@@ -1623,6 +1652,10 @@
         toastLyricStyleSwitched:"Lyrics FX toggled.",
         toastDownloadNotReady:"Song not fully loaded yet. Try again later.",
         toastPlaylistCreated:"Playlist created.",
+        toastPlaylistDeleted:"Playlist deleted.",
+        toastTrackRemovedFromPlaylist:"Removed from playlist.",
+        confirmDeletePlaylist:"Delete this playlist?",
+        confirmRemoveTrack:"Remove this song from the playlist?",
         toastPlaylistImported:"Import completed",
         toastPlaylistImportEmpty:"No usable playlists or favorites found in this file.",
         toastPlaylistImportError:"Import failed. Please choose a JSON file exported by this site.",
@@ -2763,6 +2796,49 @@
       showToast(t('toastAddedToPlaylist'));
     }
 
+    function deleteSelectedPlaylist(){
+      const plId=dom.playlistSelect.value;
+      if(!plId){showToast(t('toastNeedPlaylistSelected'));return;}
+      const idx=state.playlists.findIndex(p=>p.id===plId);
+      if(idx<0){showToast(t('toastNeedPlaylistSelected'));return;}
+      if(!window.confirm(t('confirmDeletePlaylist')))return;
+
+      state.playlists.splice(idx,1);
+      const next=state.playlists[Math.min(idx,state.playlists.length-1)]||state.playlists[0]||null;
+      state.playContext.playlistId=next?next.id:null;
+      if(state.playContext.type==='playlist' && !next){
+        state.playContext.index=-1;
+      }
+      renderPlaylistOptions();
+      if(next)dom.playlistSelect.value=next.id;
+      saveLibraryToStorage();
+      renderPlaylistList();
+      showToast(t('toastPlaylistDeleted'));
+    }
+
+    function removeTrackFromCurrentPlaylist(trackUid){
+      const plId=dom.playlistSelect.value;
+      const pl=state.playlists.find(p=>p.id===plId);
+      if(!pl)return;
+      const idx=pl.tracks.findIndex(tk=>tk.uid===trackUid);
+      if(idx<0)return;
+      if(!window.confirm(t('confirmRemoveTrack')))return;
+
+      const removed=pl.tracks.splice(idx,1)[0];
+      if(state.playContext.type==='playlist' && state.playContext.playlistId===plId){
+        if(state.currentTrack && removed && state.currentTrack.uid===removed.uid){
+          state.playContext.index=pl.tracks.length ? Math.min(idx,pl.tracks.length-1) : -1;
+        }else if(idx<state.playContext.index){
+          state.playContext.index-=1;
+        }else if(state.playContext.index>=pl.tracks.length){
+          state.playContext.index=pl.tracks.length-1;
+        }
+      }
+      saveLibraryToStorage();
+      renderPlaylistList();
+      showToast(t('toastTrackRemovedFromPlaylist'));
+    }
+
     // ===================== 搜索结果 / 播放列表渲染 =====================
 
     function renderMiniSearchList(){
@@ -2874,6 +2950,10 @@
         const fBtn=document.createElement('button');
         fBtn.className='btn btn-secondary btn-icon ripple-target'; fBtn.textContent='❤';
         if(isFavorite(track)) fBtn.classList.add('btn-fav-active');
+        const removeBtn=document.createElement('button');
+        removeBtn.className='btn btn-ghost btn-icon ripple-target';
+        removeBtn.textContent='×';
+        removeBtn.title=t('removeFromPlaylist');
 
         pBtn.addEventListener('click',ev=>{
           ev.stopPropagation();
@@ -2900,17 +2980,22 @@
           renderPlaylistList();
           updateMainFavButton();
         });
+        removeBtn.addEventListener('click',ev=>{
+          ev.stopPropagation();
+          removeTrackFromCurrentPlaylist(track.uid);
+        });
         act.appendChild(pBtn);
         act.appendChild(fBtn);
+        if(activeTab==='playlists') act.appendChild(removeBtn);
         item.appendChild(index);item.appendChild(meta);item.appendChild(act);
         item.addEventListener('click',()=>pBtn.click());
         wrap.appendChild(item);
       });
 
-      const playingEl=wrap.querySelector('.track-item.playing');
-      if(playingEl){
-        playingEl.scrollIntoView({block:'center',behavior:'smooth'});
-      }
+      // Do not auto-scroll the right playlist after every re-render.
+      // Re-rendering can happen when favoriting/unfavoriting a track; forcing
+      // the active track into view at that moment may push the playlist header
+      // and controls out of the visible area in some layouts.
     }
 
     // ===================== 歌单弹窗 =====================
@@ -3087,6 +3172,7 @@
       dom.playlistInfo=$('playlist-info');
       dom.playlistSelectRow=$('playlist-select-row');
       dom.playlistSelect=$('playlist-select');
+      dom.deletePlaylistBtn=$('delete-playlist-btn');
       dom.newPlaylistBtn=$('new-playlist-btn');
       dom.importPlaylistBtn=$('import-playlist-btn');
       dom.importPlaylistInput=$('import-playlist-input');
@@ -3232,6 +3318,7 @@
         });
       });
 
+      dom.deletePlaylistBtn.addEventListener('click',deleteSelectedPlaylist);
       dom.newPlaylistBtn.addEventListener('click',openPlaylistModal);
       dom.importPlaylistBtn.addEventListener('click',()=>dom.importPlaylistInput.click());
       dom.importPlaylistInput.addEventListener('change',handleImportPlaylistFile);
