@@ -2,44 +2,44 @@
   <img src="docs/logo.png" alt="MusicSquare logo" width="640">
 </p>
 
-# 🌟 Overview
+# 🌟 概述
 
-MusicSquare is a simple music search, download, and play website. 
-It provides a lightweight, browser-friendly interface to search, play, and download music directly from your GitHub Pages site.
+MusicSquare 是一个简单的音乐搜索、下载和播放网站。
+它提供了一个轻量、友好的浏览器界面，能够直接从你的 GitHub Pages 网站搜索、播放和下载音乐。
 
-This GitHub Pages deployment is available at:
+此 GitHub Pages 部署可在以下网址访问:
 
-👉 **Live URL:** <https://music.yui4.com>
+👉 **在线URL:** <https://music.yui4.com>
+👉 **原作者在线URL:** <https://charlespikachu.github.io/musicsquare/>
 
+## ✨ 主要特点
 
-## ✨ Key Features
+- 🎵 **在线音乐搜索与播放**
+支持通过关键词搜索歌曲，并可直接在浏览器中播放。
 
-- 🎵 **Online music search & playback**  
-  Supports searching songs by keyword and playing them directly in the browser.
+- 📻 **多种音乐来源**
+整合了网易、酷我、JOOX（海外QQ） 和 QQ 等在线平台。
 
-- 📻 **Multiple music sources**  
-  Integrates online platforms such as Netease, Kuwo, JOOX and QQ.
-
-- 💛 **Cute & simple UI**  
-  A clean, playful interface themed around Pikachu and casual music listening.
-
-
-## 🚀 How to Use
-
-1. Open the live site:  
-   👉 <https://music.yui4.com>
-
-2. Use the search box to input an artist name or song title (e.g., “周杰伦”).
-
-3. Click on a result to start playback and enjoy the music.
+- 💛 **可爱简洁的界面**
+以皮卡丘为主题，提供轻松愉快的音乐聆听界面。
 
 
-## 💻 Development & Customization
+## 🚀 如何使用
 
-- This site is hosted via **GitHub Pages**.
-- You can customize:
-  - Theme (colors, background, icons)
-  - API endpoints (e.g., your own proxy/bridge server for Netease, Kuwo, JOOX and QQ.)
-  - Player behavior (autoplay, playlist, lyrics panel, etc.)
+1. 打开网站：
+👉 <https://music.yui4.com>
 
-For more details, check the source files in this repository and adjust the HTML / CSS / JavaScript as needed.
+2. 使用搜索框输入艺人名字或歌曲标题（例如“周杰伦”）。
+
+3. 点击搜索结果以开始播放并享受音乐。
+
+
+## 💻 开发与定制
+
+- 本网站通过 **GitHub Pages** 托管。
+- 您可以定制：
+  - 主题（颜色、背景、图标）
+  - API 接口（例如，您自己的 Netease、Kuwo、JOOX 和 QQ 代理/中转服务器）
+  - 播放器行为（自动播放、播放列表、歌词显示等）
+
+更多详情，请查看此仓库中的源文件，并根据需要调整 HTML / CSS / JavaScript。
