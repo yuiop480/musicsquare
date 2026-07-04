@@ -2018,7 +2018,7 @@
     // 网易云搜索：qijieya meting search
     async function searchNetease(kw, page, num){
       const requestLimit=Math.max(1,page||1)*Math.max(1,num||10);
-      const url=`https://musicapi.qijieya.cn/meting/?type=search&id=${encodeURIComponent(kw)}&limit=${encodeURIComponent(requestLimit)}&server=netease`;
+      const url=`https://api.qijieya.cn/meting/?type=search&id=${encodeURIComponent(kw)}&limit=${encodeURIComponent(requestLimit)}&server=netease`;
       let added=0;
 
       function pickQueryParam(rawUrl, key){
@@ -2301,10 +2301,10 @@
     async function fetchNeteaseDetails(track){
       if(track.songid){
         if(!track.audioUrl){
-          track.audioUrl=`https://musicapi.qijieya.cn/meting/?server=netease&type=url&id=${encodeURIComponent(track.songid)}`;
+          track.audioUrl=`https://api.qijieya.cn/meting/?server=netease&type=url&id=${encodeURIComponent(track.songid)}`;
         }
         if(!track.lrcUrl){
-          track.lrcUrl=`https://musicapi.qijieya.cn/meting/?server=netease&type=lrc&id=${encodeURIComponent(track.songid)}`;
+          track.lrcUrl=`https://api.qijieya.cn/meting/?server=netease&type=lrc&id=${encodeURIComponent(track.songid)}`;
         }
       }
 
