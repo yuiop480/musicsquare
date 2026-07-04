@@ -2,10 +2,6 @@
   <img src="docs/logo.png" alt="MusicSquare logo" width="640">
 </p>
 
-<p align="center">
-  <strong>学习收获更多有趣的内容, 欢迎关注微信公众号：Charles的皮卡丘</strong>
-</p>
-
 # 🌟 Overview
 
 MusicSquare is a simple music search, download, and play website. 
@@ -13,7 +9,7 @@ It provides a lightweight, browser-friendly interface to search, play, and downl
 
 This GitHub Pages deployment is available at:
 
-👉 **Live URL:** <https://charlespikachu.github.io/musicsquare/>
+👉 **Live URL:** <https://music.yui4.com>
 
 
 ## ✨ Key Features
@@ -31,7 +27,7 @@ This GitHub Pages deployment is available at:
 ## 🚀 How to Use
 
 1. Open the live site:  
-   👉 <https://charlespikachu.github.io/musicsquare/>
+   👉 <https://music.yui4.com>
 
 2. Use the search box to input an artist name or song title (e.g., “周杰伦”).
 
